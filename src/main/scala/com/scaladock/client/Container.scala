@@ -4,6 +4,13 @@ import scala.util.{Failure, Success, Try}
 import net.liftweb.json.Serialization._
 import net.liftweb.json.{JsonParser, DefaultFormats}
 import com.scaladock.client.util.PrettyPrinter
+import io.backchat.hookup._
+
+import java.net.URI
+import akka.actor.ActorSystem
+import scala.concurrent.duration._
+import java.util.concurrent.atomic.AtomicInteger
+import java.io.File
 
 
 sealed case class CreationConfig
@@ -178,7 +185,13 @@ sealed case class WaitStatus
  */
 class Container(val id: String, val connection: DockerConnection) extends Movable with HttpHelper {
 
+  import akka.actor.Actor
+  import akka.actor.Props
+  import scala.concurrent.duration._
+
   implicit val formats = DefaultFormats
+
+  val attachURI = new URI(s"ws://${connection.host}:${connection.port}/containers/$id/attach/ws")
 
   var Config = None: Option[CreationConfig]
 
@@ -299,4 +312,48 @@ class Container(val id: String, val connection: DockerConnection) extends Movabl
     val binary = get(connection)(s"containers/$id/export")
   }
 
+  val system = ActorSystem("ContainerAttach")
+
+  def attach {
+    ContainerAttach.makeClient(id, connection.host, connection.port)
+  }
+
+}
+
+object ContainerAttach {
+
+  val messageCounter = new AtomicInteger(0)
+
+  implicit def stringToTextMessage(s: String) = TextMessage(s)
+
+  val system = ActorSystem("ContainerAttach")
+
+  def makeClient(id: String, host: String, port: String) = {
+    new HookupClient() {
+
+      val uri = new URI(s"ws://${host}:${port}/containers/$id/attach/ws?stream=1&stderr=1&stdout=1")
+
+      val settings: HookupClientConfig = HookupClientConfig(
+        uri = uri,
+        throttle = IndefiniteThrottle(5 seconds, 30 minutes),
+        buffer = Some(new FileBuffer(new File("./work/buffer.log")))
+      )
+
+      def receive = {
+        case Disconnected(_) => println("The websocket to " + uri.toASCIIString + " disconnected.")
+        case TextMessage(message) => {
+          println("RECV: " + message)
+          // send("ECHO: " + message)
+        }
+      }
+
+      connect() onSuccess {
+        case _ =>
+          println(s"Attached to $id at %s" format uri.toASCIIString)
+          system.scheduler.schedule(0 seconds, 1 second) {
+            send(s"message " + messageCounter.incrementAndGet().toString)
+          }
+      }
+    }
+  }
 }

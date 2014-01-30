@@ -170,6 +170,11 @@ class DockerConnection
 
   /**
    * GET the List of containers on the remote server
+   * @param all
+   * @param limit
+   * @param since
+   * @param before
+   * @param size
    * @return List[Container]
    */
   def listContainers(all: Boolean = true, limit: Int = 0, since: String = "",
@@ -195,8 +200,12 @@ class DockerConnection
   }
 
   /**
-   * Creates a new Container with the given optional configuration
-   * To access to the value
+   * Creates a new Image from a base Image
+   * @param fromImage
+   * @param fromSrc
+   * @param repo
+   * @param tag
+   * @param registry
    * @return Future[CreateImageResponse]
    */
   def createImage(fromImage: String = "base", fromSrc: String = "", repo: String = "",
@@ -226,6 +235,8 @@ class DockerConnection
 
   /**
    * GET the List of images on the remote server
+   * @param all
+   * @param limit
    * @return List[Container]
    */
   def listImages(all: Boolean = true, limit: Int = 0): Try[List[Image]] = Try {
