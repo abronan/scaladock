@@ -76,6 +76,7 @@ class Image(id: String, connection: DockerConnection) extends HttpHelper {
    * @return
    */
   def history: Try[Array[History]] = Try {
+    // TODO Handle Special case of containers that are <none>:<none>
     JsonParser.parse(
       get(connection)(s"images/${Info.get.RepoTags(0)}/history")
     ).extract[Array[History]]

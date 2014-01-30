@@ -41,19 +41,28 @@ sealed case class AuthConfig
 class DockerRegistry
 (
   val indexURL: String = "https://index.docker.io/v1/",
-  val dockercfg: String = ".dockercfg")
+  val dockercfg: String = ".dockercfg",
+  val rootPath: Option[String] = None)
   extends HttpHelper {
 
   implicit val formats = DefaultFormats
 
   val default = "https://index.docker.io/v1/"
 
+  def authBase64: String =
+    Base64.encode(AuthConfig.get.auth.getBytes(Charset.forName("ASCII"))).toString
+
   /**
    * Resolve Auth Configuration for a given registry
    */
   def AuthConfig: Try[AuthConfig] = Try {
 
-    val configList = RegistryConfig(configs = loadConfig().get)
+    val config: Map[String, AuthConfig] = loadConfig match {
+      case Success(c) => c
+      case Failure(_) => null
+    }
+
+    val configList = RegistryConfig(configs = config)
     val authConfig = configList.configs.get(indexURL)
 
     authConfig.get
@@ -61,20 +70,15 @@ class DockerRegistry
 
   /**
    * Tries to load the authentication configuration for the registry
-   * @param root
    * @return
    */
-  def loadConfig(root: Option[String] = None): Try[Map[String, AuthConfig]] = Try {
+  def loadConfig: Try[Map[String, AuthConfig]] = Try {
     JsonParser.parse(
       Source
-        .fromFile(s"${root.getOrElse(System.getenv("HOME"))}/$dockercfg")
+        .fromFile(s"${rootPath.getOrElse(System.getenv("HOME"))}/$dockercfg")
         .getLines()
         .mkString
     ).extract[Map[String, AuthConfig]]
-  }
-
-  def authBase64: String = {
-    Base64.encode(AuthConfig.get.auth.getBytes(Charset.forName("ASCII"))).toString
   }
 
   // TODO Infer registry configuration
@@ -87,6 +91,5 @@ class DockerRegistry
   def pingRegistry: Boolean = {
     ping(s"$indexURL/", "_ping")
   }
-
 
 }

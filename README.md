@@ -94,3 +94,15 @@ You could even migrate a full set of containers passing a `List[Container]` to t
 ###Pull and Attach
 
 Pull and Attach functions are normally done by hijacking the Http connection. As it is not a very clean way to do so, those commands are only available through **ssh**. You could thus instantiate an Actor listening on `Stdin`, `Stdout` or `Stderr` if you wish and calling actions on the container regarding the situation.
+
+###Contributing
+
+1. Fork it
+
+2. Create your feature branch (git checkout -b my-new-feature)
+
+3. Commit your changes (git commit -am 'Add some feature')
+
+4. Push to the branch (git push origin my-new-feature)
+
+5. Create new Pull Request

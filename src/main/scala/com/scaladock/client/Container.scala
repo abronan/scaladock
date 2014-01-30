@@ -20,7 +20,7 @@ sealed case class CreationConfig
   OpenStdin: Boolean = false,
   StdinOnce: Boolean = false,
   Env: Option[Array[String]] = None,
-  Cmd: Option[Array[String]] = None,
+  Cmd: Option[Array[String]] = Some(Array("/bin/bash")),
   Dns: Option[Array[String]] = None,
   Image: String = "ubuntu",
   Volumes: Option[Map[String, Array[String]]] = None,
@@ -72,22 +72,24 @@ sealed case class Port
 (
   PrivatePort: Long,
   PublicPort: Long,
-  PortType: String)
+  Type: String,
+  IP: String)
   extends PrettyPrinter
 
 sealed case class Start
 (
-  Binds: Array[String],
-  LxcConf: Map[String, String],
-  PortBindings: Map[String, Array[HostBinding]],
-  PublishAllPorts: Boolean,
-  Privileged: Boolean)
+  Binds: Option[Array[String]] = None,
+  LxcConf: Option[Map[String, String]] = None,
+  PortBindings: Option[Map[String, Array[HostBinding]]] = None,
+  PublishAllPorts: Boolean = false,
+  Links: Option[Map[String, Array[String]]] = None,
+  Privileged: Boolean = false)
   extends PrettyPrinter
 
 sealed case class HostBinding
 (
-  HostIp: String,
-  HostPort: String)
+  HostIp: Option[String] = None,
+  HostPort: Option[String] = None)
   extends PrettyPrinter
 
 sealed case class ContainerInspect
@@ -105,9 +107,9 @@ sealed case class ContainerInspect
   HostsPath: String,
   Name: String,
   Driver: String,
-  Volumes: Map[String, String],
-  VolumesRW: Map[String, Boolean],
-  HostConfig: HostConfig)
+  Volumes: Option[Map[String, String]],
+  VolumesRW: Option[Map[String, Boolean]],
+  HostConfig: Option[HostConfig])
   extends PrettyPrinter
 
 sealed case class State
@@ -148,6 +150,7 @@ sealed case class PortBinding
 (
   HostIp: String,
   HostPort: String)
+  extends PrettyPrinter
 
 sealed case class ProcessList
 (
@@ -162,6 +165,11 @@ sealed case class Changes
   Kind: Int)
   extends PrettyPrinter
 
+sealed case class WaitStatus
+(
+  StatusCode: Int)
+  extends PrettyPrinter
+
 
 /**
  * A Container in a Docker instance
@@ -172,7 +180,7 @@ class Container(val id: String, val connection: DockerConnection) extends Movabl
 
   implicit val formats = DefaultFormats
 
-  var Config = None: Option[ContainerConfig]
+  var Config = None: Option[CreationConfig]
 
   var Info = None: Option[Info]
 
@@ -180,36 +188,57 @@ class Container(val id: String, val connection: DockerConnection) extends Movabl
    * Starts the container
    * @return
    */
-  def start(config: Option[Start] = None) {
-    postJson(connection)(s"containers/$id/start", Some(write(config.getOrElse(""))))
+  def start(config: Option[Start] = None) = Try {
+    val (responseCode, _, _) = config match {
+      case Some(c) => postJsonWithHeaders(connection)(s"containers/$id/start", Some(write(c)))
+      case None => postJsonWithHeaders(connection)(s"containers/$id/start", Some(write(Start())))
+    }
+    responseCode match {
+      case 204 => Success("Container Started")
+      case 404 => Failure(new Throwable("404 - no such container"))
+      case 500 => Failure(new Throwable("500 - internal server error"))
+    }
   }
 
   /**
    * Stops the running container after t time
    * default: 5 seconds
    */
-  def stop(timeout: Int = 5000) {
-    val params = Map("t" -> timeout.toString)
-    post(connection)(s"containers/$id/stop", Some(params))
+  def stop(wait: Int = 5000) = Try {
+    val params = Map("t" -> wait.toString)
+    val (responseCode, _, _) = postParseHeaders(connection)(s"containers/$id/stop", Some(params))
+    responseCode match {
+      case 204 => Success("Container Stopped")
+      case 404 => Failure(new Throwable("404 - no such container"))
+      case 500 => Failure(new Throwable("500 - internal server error"))
+    }
   }
 
   /**
    * Restarts a container after t time
    * default: 5 seconds
    */
-  def restart(timeout: Int = 5000) {
-    val params = Map("t" -> timeout.toString)
-    post(connection)(s"containers/$id/restart", Some(params))
+  def restart(wait: Int = 5000) = Try {
+    val params = Map("t" -> wait.toString)
+    val (responseCode, _, _) = postParseHeaders(connection)(s"containers/$id/restart", Some(params))
+    responseCode match {
+      case 204 => Success("Container Restarted")
+      case 404 => Failure(new Throwable("404 - no such container"))
+      case 500 => Failure(new Throwable("500 - internal server error"))
+    }
   }
 
   /**
    * Immediatly kills a running container
    * Call if [[com.scaladock.client.Container.stop( )]] does not work
    */
-  def kill {
-    // TODO Handle response code
-    val (responseCode, headers, inputStream) =
-      postParseHeaders(connection)(s"containers/$id/kill")
+  def kill = Try {
+    val (responseCode, _, _) = postParseHeaders(connection)(s"containers/$id/kill")
+    responseCode match {
+      case 204 => Success("Container Killed")
+      case 404 => Failure(new Throwable("404 - no such container"))
+      case 500 => Failure(new Throwable("500 - internal server error"))
+    }
   }
 
   /**
@@ -253,6 +282,16 @@ class Container(val id: String, val connection: DockerConnection) extends Movabl
   }
 
   /**
+   * Waits for a container to stop and return its status
+   * @return
+   */
+  def Wait: Try[WaitStatus] = Try {
+    JsonParser.parse(
+      get(connection)(s"containers/$id/wait")
+    ).extract[WaitStatus]
+  }
+
+  /**
    * Exports the container in tar format
    * @return
    */
@@ -260,12 +299,4 @@ class Container(val id: String, val connection: DockerConnection) extends Movabl
     val binary = get(connection)(s"containers/$id/export")
   }
 
-}
-
-object Container {
-
-  /*val container = connection create
-  with Config(
-    User = "abronan"
-  )*/
 }

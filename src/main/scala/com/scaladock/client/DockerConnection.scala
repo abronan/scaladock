@@ -2,12 +2,34 @@ package com.scaladock.client
 
 import scala.util.{Failure, Success, Try}
 import scala.None
+import scala.concurrent.Future
+import scala.concurrent.ExecutionContext.Implicits.global
 import net.liftweb.json.{DefaultFormats, JsonParser}
 import net.liftweb.json.Serialization._
 import scala.util.Success
 import scala.util.Failure
 import com.scaladock.client.util.PrettyPrinter
 
+
+sealed case class SystemInfo
+(
+  Containers: Int,
+  Debug: Boolean,
+  Driver: String,
+  DriverStatus: Array[Array[String]],
+  IPv4Forwarding: Boolean,
+  Images: Int,
+  IndexServerAddress: String,
+  InitPath: String,
+  InitSha1: String,
+  KernelVersion: String,
+  LXCVersion: String,
+  MemoryLimit: Int,
+  NEventsListener: Int,
+  NFd: Int,
+  NGoroutines: Int,
+  SwapLimit: Boolean)
+  extends PrettyPrinter
 
 sealed case class DockerVersion
 (
@@ -74,13 +96,13 @@ trait Connection {
  */
 class DockerConnection
 (
-  override val host: String = "unix:///var/run/docker.sock",
+  override val host: String = "unix:///var/run/docker.sock/v1.8",
   override val port: String = "4243")
   extends Connection with HttpHelper {
 
   implicit val formats = DefaultFormats
 
-  override val default = "unix:///var/run/docker.sock"
+  override val default = "unix:///var/run/docker.sock/v1.8"
 
   /**
    * Shortens the Id of the container for future API calls
@@ -97,6 +119,16 @@ class DockerConnection
     JsonParser.parse(
       get(this)("version")
     ).extract[DockerVersion]
+  }
+
+  /**
+   * System-wide informations
+   * @return
+   */
+  def SystemInfo: Try[SystemInfo] = Try {
+    JsonParser.parse(
+      get(this)("info")
+    ).extract[SystemInfo]
   }
 
   /**
@@ -121,7 +153,7 @@ class DockerConnection
    * Creates a new Container with the given optional configuration
    * @return Try[Container]
    */
-  def createContainer(configuration: Option[ContainerConfig] = None): Try[Container] = Try {
+  def createContainer(configuration: Option[CreationConfig] = Some(CreationConfig())): Try[Container] = Try {
     val json = configuration match {
       case Some(_) => write(configuration)
       case None => ""
@@ -164,25 +196,32 @@ class DockerConnection
 
   /**
    * Creates a new Container with the given optional configuration
-   * TODO Test
-   * @return Try[Container]
+   * To access to the value
+   * @return Future[CreateImageResponse]
    */
-  def createImage(fromImage: String = "base", fromSrc: String = "-", repo: String = "",
-                  tag: String = "", registry: DockerRegistry): Try[Image] = Try {
+  def createImage(fromImage: String = "base", fromSrc: String = "", repo: String = "",
+                  tag: String = "", registry: Option[DockerRegistry] = None): Future[CreateImageResponse] = Future {
 
     var params = Map[String, String]()
     params += ("fromImage" -> fromImage)
     if (fromSrc != "") params += ("fromSrc" -> fromSrc)
     if (repo != "") params += ("repo" -> repo)
     if (tag != "") params += ("tag" -> tag)
-    if (registry != "") params += ("registry" -> registry.indexURL)
 
-    val resp = JsonParser.parse(
-      postAuth(this)("containers/create", Some(params), registry.authBase64)
-    ).extract[CreateImageResponse]
-
-    // TODO Interpret Response
-    new Image("fake", this)
+    // If registry isn't set then we use the default index
+    registry match {
+      case Some(_) => {
+        params += ("registry" -> registry.get.indexURL)
+        JsonParser.parse(
+          postAuth(this)("images/create", Some(params), registry.get.authBase64)
+        ).extract[CreateImageResponse]
+      }
+      case None => {
+        JsonParser.parse(
+          post(this)("images/create", Some(params))
+        ).extract[CreateImageResponse]
+      }
+    }
   }
 
   /**

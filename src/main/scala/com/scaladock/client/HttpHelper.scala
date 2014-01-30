@@ -48,6 +48,24 @@ trait HttpHelper {
   }
 
   /**
+   * POST method helper with Json send and parse headers
+   * @param caller
+   * @param request
+   * @param json
+   * @tparam A
+   * @return String
+   */
+  def postJsonWithHeaders[A <: Connection](caller: A)(request: String, json: Option[String] = None):
+  (Int, Map[String, List[String]], InputStreamReader) = {
+    Http
+      .postData(s"${caller.URL}/$request", json.getOrElse(""))
+      .header("content-type", "application/json")
+      .asHeadersAndParse {
+      inputStream => new InputStreamReader(inputStream)
+    }
+  }
+
+  /**
    * POST method helper with standard params Map
    * @param caller
    * @param request
@@ -60,6 +78,7 @@ trait HttpHelper {
       case Some(_) => {
         Http
           .post(s"${caller.URL}/$request")
+          .options(HttpOptions.connTimeout(10000), HttpOptions.readTimeout(10000))
           .params(params.get)
           .header("content-type", "application/json")
           .asString
@@ -67,6 +86,7 @@ trait HttpHelper {
       case None => {
         Http
           .post(s"${caller.URL}/$request")
+          .options(HttpOptions.connTimeout(10000), HttpOptions.readTimeout(10000))
           .header("content-type", "application/json")
           .asString
       }
@@ -107,11 +127,24 @@ trait HttpHelper {
    * @tparam A
    * @return InputStreamReader
    */
-  def postParseHeaders[A <: Connection](caller: A)(request: String): (Int, Map[String, List[String]], InputStreamReader) = {
-    Http
-      .post(s"${caller.URL}/$request")
-      .asHeadersAndParse {
-      inputStream => new InputStreamReader(inputStream)
+  def postParseHeaders[A <: Connection](caller: A)(request: String, params: Option[Map[String, String]] = None)
+  :(Int, Map[String, List[String]], InputStreamReader) = {
+    params match {
+      case Some(_) => {
+        Http
+          .post(s"${caller.URL}/$request")
+          .params(params.get)
+          .asHeadersAndParse {
+          inputStream => new InputStreamReader(inputStream)
+        }
+      }
+      case None => {
+        Http
+          .post(s"${caller.URL}/$request")
+          .asHeadersAndParse {
+          inputStream => new InputStreamReader(inputStream)
+        }
+      }
     }
   }
 
