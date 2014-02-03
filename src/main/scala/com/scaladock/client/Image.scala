@@ -34,7 +34,7 @@ sealed case class History
   Size: Int)
   extends PrettyPrinter
 
-sealed case class PushResponse
+sealed case class Progress
 (
   status: String,
   progress: Option[String],
@@ -87,11 +87,24 @@ class Image(id: String, connection: DockerConnection) extends HttpHelper {
    * @param registry
    * @return
    */
-  def push(registry: DockerRegistry): Try[PushResponse] = Try {
+  def push(registry: DockerRegistry): Try[Progress] = Try {
     val params = Map("registry" -> registry.indexURL)
     JsonParser.parse(
       postAuth(connection)(s"images/${Info.get.RepoTags(0)}/push", Some(params), registry.authBase64)
-    ).extract[PushResponse]
+    ).extract[Progress]
+  }
+
+  /**
+   * Insert a file in the specified path into a container
+   * @param path
+   * @param url
+   * @return
+   */
+  def insert(path: String = "/usr", url: String = ""): Try[Progress] = Try {
+    val params = Map("path" -> path, "url" -> url)
+    JsonParser.parse(
+      post(connection)(s"images/${Info.get.RepoTags(0)}/insert", Some(params))
+    ).extract[Progress]
   }
 
   /**

@@ -7,7 +7,7 @@ import com.scaladock.client.util.PrettyPrinter
 import io.backchat.hookup._
 
 import java.net.URI
-import akka.actor.ActorSystem
+import akka.actor.{ActorSystem}
 import scala.concurrent.duration._
 import java.util.concurrent.atomic.AtomicInteger
 import java.io.File
@@ -185,17 +185,13 @@ sealed case class WaitStatus
  */
 class Container(val id: String, val connection: DockerConnection) extends Movable with HttpHelper {
 
-  import akka.actor.Actor
-  import akka.actor.Props
-  import scala.concurrent.duration._
-
   implicit val formats = DefaultFormats
-
-  val attachURI = new URI(s"ws://${connection.host}:${connection.port}/containers/$id/attach/ws")
 
   var Config = None: Option[CreationConfig]
 
   var Info = None: Option[Info]
+
+  var AttachInterface = None: Option[HookupClient]
 
   /**
    * Starts the container
@@ -255,6 +251,21 @@ class Container(val id: String, val connection: DockerConnection) extends Movabl
   }
 
   /**
+   * Removes the container
+   * @param removeVolume
+   * @return
+   */
+  def remove(removeVolume: Boolean = false) = Try {
+    val params = Map("v" -> removeVolume.toString)
+    val (responseCode, _, _) = postParseHeaders(connection)(s"containers/$id/kill", Some(params))
+    responseCode match {
+      case 204 => Success("Container Removed")
+      case 404 => Failure(new Throwable("404 - no such container"))
+      case 500 => Failure(new Throwable("500 - internal server error"))
+    }
+  }
+
+  /**
    * Inspect for low level information on the container
    * @return
    */
@@ -308,14 +319,33 @@ class Container(val id: String, val connection: DockerConnection) extends Movabl
    * Exports the container in tar format
    * @return
    */
-  def export {
+  def export = Try {
     val binary = get(connection)(s"containers/$id/export")
   }
 
-  val system = ActorSystem("ContainerAttach")
+  /**
+   * Attach to container stdout through websocket
+   */
+  def attach(logfile: Option[String] = None) = Try {
+    logfile match {
+      case Some(v) =>
+        AttachInterface = Some(
+          ContainerAttach.makeClient(id, connection.host, connection.port, logfile)
+        )
+      case None => AttachInterface = Some(
+        ContainerAttach.makeClient(id, connection.host, connection.port, None)
+      )
+    }
+  }
 
-  def attach {
-    ContainerAttach.makeClient(id, connection.host, connection.port)
+  /**
+   * Attach to container stdout through websocket
+   */
+  def detach = Try {
+    AttachInterface match {
+      case Some(v) => v.disconnect()
+      case None => // ignore
+    }
   }
 
 }
@@ -328,22 +358,29 @@ object ContainerAttach {
 
   val system = ActorSystem("ContainerAttach")
 
-  def makeClient(id: String, host: String, port: String) = {
+  def makeClient(id: String, host: String, port: String, logfile: Option[String], stream: Boolean = true,
+                 stderr: Boolean = true, stdout: Boolean = true) = {
+
+    val logs = new File(s"${System.getenv("HOME")}/${id}.log")
+
     new HookupClient() {
 
-      val uri = new URI(s"ws://${host}:${port}/containers/$id/attach/ws?stream=1&stderr=1&stdout=1")
+      val uri = new URI(s"ws://${host}:${port}/containers/$id/attach/ws?stream=$stream&stderr=$stderr&stdout=$stdout")
 
       val settings: HookupClientConfig = HookupClientConfig(
         uri = uri,
         throttle = IndefiniteThrottle(5 seconds, 30 minutes),
-        buffer = Some(new FileBuffer(new File("./work/buffer.log")))
+        buffer = Some(new FileBuffer(new File(logfile.getOrElse(System.getenv("HOME") + "/buffer.log"))))
       )
 
       def receive = {
-        case Disconnected(_) => println("The websocket to " + uri.toASCIIString + " disconnected.")
+        case Disconnected(_) => {
+          println("The websocket to " + uri.toASCIIString + " disconnected.")
+          system.shutdown()
+        }
         case TextMessage(message) => {
-          println("RECV: " + message)
-          // send("ECHO: " + message)
+          println(message)
+          scala.tools.nsc.io.File(logs).appendAll(message)
         }
       }
 

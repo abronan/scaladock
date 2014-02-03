@@ -1,6 +1,6 @@
 #Scaladock
 
-**scaladock** is a simple [Scala](http://www.scala-lang.org) client for the [Docker](http://www.docker.io) Container Engine.
+**scaladock** is a simple [Scala](http://www.scala-lang.org) client for the [Docker](http://www.docker.io) Container Engine Remote API.
 
 
 ##Getting Started
@@ -9,13 +9,13 @@
 
 ####Using SBT
 
-You can import the project using SBT :
+You can import the project using SBT:
 
 	libraryDependencies += "com.scaladock" % "scaladock" % "0.2.3-SNAPSHOT"
 	
 ####Using Maven
 
-You can also import the project using classical Maven definition in `pom.xml` :
+You can also import the project using classical Maven definition in `pom.xml`:
 
 	<dependency>
 		<groupId>com.scaladock</groupId>
@@ -26,34 +26,38 @@ You can also import the project using classical Maven definition in `pom.xml` :
 
 ###Connection
 
-#####Connect to local instance through unix socket
+#####Connect to local instance through local unix socket
 
 	val connection = new DockerConnection()
 
-#####Connect to remote instance using Http
+#####Connect to a remote instance using Http
 
 	val connection = new DockerConnection("172.16.212.98", "4243")
-	
-#####Connect to remote instance using SSH (enables attach to stdin, out and err)
-
-	val connection = new DockerConnection("172.16.212.98") with SSH
 
 ###Create a new Container and perform actions on it
 
-You can create a new Container using the connection you defined in the last step calling `create` :
+You can create a new Container using the connection you defined in the last step calling `create`:
 
 	val container = connection.create(
   	  Some(Config(
     	Tty = true,
     	Cmd = Array("date")
   	  ))
-	).get
+	)
 	
-You can then perform many actions on the container :
+	container match {
+		case Success(c) => {
+			c.start
+			// do stuff here
+		}
+		case Failure(e) => new Throwable("Failed to create container")
+	}
+	
+You can then perform many actions on the container:
 
-	container.start
+	container.start()
 	
-	container.stop
+	container.stop()
 	
 	container.restart
 	
@@ -62,10 +66,22 @@ You can then perform many actions on the container :
 	container.inspect
 	...
 
+###Attach to a container
+
+	c.attach()
+	
+Do not forget to `start()` the container first or the attach command will output nothing. If attach succeeds, this will print stdout onto the REPL and output to a file named `<container_id>.log`. You can also explicitely specify where the log file will be by passing the path to attach.
+
+	c.attach("/home/user/logfile.log")
+
+To detach from the container, use:
+
+	c.detach
+
 
 ###Migrate Containers through Hosts
 
-You just need to use the `>>` (shift) method. The following snippet demonstrates how this is done :
+You just need to use the `>>` (shift) method. The following snippet demonstrates how this is done:
 
 	val host = new DockerConnection()
 	val remote = new DockerConnection("172.16.212.98") with SSH
@@ -81,7 +97,7 @@ You just need to use the `>>` (shift) method. The following snippet demonstrates
 	
 `>>` is blocking while `>>>` is non blocking and forces you to handle the success of a `Future`.
 	
-Under the hood, the migration pass through the following steps :
+Under the hood, the migration pass through the following steps:
 
 * Commit an Image from the container filesystem changes
 * Push the Image onto a private Registry (if you declare nothing it is pushed on the public index using your credentials if you are authenticated)
@@ -90,10 +106,6 @@ Under the hood, the migration pass through the following steps :
 
 You could even migrate a full set of containers passing a `List[Container]` to the `>>>` method. In this case it might take some time so you need to control the success of the operation with a `Future` handled in its own execution context (`Actor`) to not block further processing. You should note that calling migrate on a Container blocks operations on it until `>>>` finishes its work of migration.
 	
-
-###Pull and Attach
-
-Pull and Attach functions are normally done by hijacking the Http connection. As it is not a very clean way to do so, those commands are only available through **ssh**. You could thus instantiate an Actor listening on `Stdin`, `Stdout` or `Stderr` if you wish and calling actions on the container regarding the situation.
 
 ###Contributing
 
