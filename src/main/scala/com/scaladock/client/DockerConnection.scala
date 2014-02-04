@@ -9,6 +9,10 @@ import net.liftweb.json.Serialization._
 import scala.util.Success
 import scala.util.Failure
 import com.scaladock.client.util.PrettyPrinter
+import java.io.{InputStreamReader, BufferedReader}
+import java.nio.{ByteOrder, CharBuffer}
+import scala.collection.mutable.ArrayBuffer
+import Stream._
 
 
 sealed case class SystemInfo
@@ -66,6 +70,14 @@ sealed case class SearchImage
   star_count: Int)
   extends PrettyPrinter
 
+sealed case class Event
+(
+  status: Option[String],
+  id: Option[String],
+  from: Option[String],
+  time: Option[Long])
+  extends PrettyPrinter
+
 
 /**
  * Connection Trait
@@ -75,6 +87,8 @@ trait Connection {
   def host: String
 
   def port: String
+
+  def timeout: Int
 
   def default: String
 
@@ -97,7 +111,8 @@ trait Connection {
 class DockerConnection
 (
   override val host: String = "unix:///var/run/docker.sock/v1.8",
-  override val port: String = "4243")
+  override val port: String = "4243",
+  override val timeout: Int = 10000)
   extends Connection with HttpHelper {
 
   implicit val formats = DefaultFormats
@@ -266,6 +281,17 @@ class DockerConnection
     JsonParser.parse(
       get(this)("images/json", Some(params))
     ).extract[Array[SearchImage]]
+  }
+
+  /**
+   * Monitors events since the given timestamp
+   * @param since
+   * @return
+   */
+  def events(since: Long): Try[List[Event]] = Try {
+    val params = Map("since" -> since.toString)
+    val (_, _, list) = getStreamAndClose(this)(s"events", Some(params))
+    list map (x => JsonParser.parse(x).extract[Event])
   }
 
 }

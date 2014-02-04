@@ -1,7 +1,7 @@
 package com.scaladock.client
 
-import java.io.InputStreamReader
-import scalaj.http.{HttpOptions, Http}
+import java.io.{BufferedReader, InputStreamReader}
+import scalaj.http.{HttpException, HttpOptions, Http}
 
 /**
  * Http Helper class to deal with requests to the remote API
@@ -17,17 +17,53 @@ trait HttpHelper {
    * @return String
    */
   def get[A <: Connection](caller: A)(request: String, params: Option[Map[String, String]] = None): String = {
+    val call = Http
+      .get(s"${caller.URL}/$request")
+      .options(HttpOptions.connTimeout(caller.timeout), HttpOptions.readTimeout(caller.timeout))
+
     params match {
-      case Some(_) => {
-        Http
-          .get(s"${caller.URL}/$request")
-          .params(params.get)
-          .asString
-      }
-      case None => {
-        Http
-          .get(s"${caller.URL}/$request")
-          .asString
+      case Some(_) => call.params(params.get)
+      case None =>
+    }
+
+    call.asString
+  }
+
+  /**
+   * GET Stream method helper
+   * @param caller
+   * @param request
+   * @param params
+   * @tparam A
+   * @return
+   */
+  def getStreamAndClose[A <: Connection](caller: A)(request: String, params: Option[Map[String, String]] = None)
+  : (Int, Map[String, List[String]], List[String]) = {
+    val call = Http
+      .get(s"${caller.URL}/$request")
+      .options(HttpOptions.connTimeout(caller.timeout), HttpOptions.readTimeout(caller.timeout))
+
+    params match {
+      case Some(_) => call.params(params.get)
+      case None =>
+    }
+
+    call.asHeadersAndParse {
+      inputStream => {
+        val in = new BufferedReader(new InputStreamReader(inputStream, "UTF-8"))
+        val data = new StringBuilder
+        val buffer = Array[Char](4096)
+
+        def readOnce {
+          if (in.ready()) {
+            in.read(buffer)
+            data.appendAll(buffer)
+            readOnce
+          }
+        }
+
+        readOnce
+        data.mkString.split("(?<=[}?!])").toList
       }
     }
   }
@@ -74,23 +110,17 @@ trait HttpHelper {
    * @return String
    */
   def post[A <: Connection](caller: A)(request: String, params: Option[Map[String, String]] = None): String = {
+    val call = Http
+      .post(s"${caller.URL}/$request")
+      .options(HttpOptions.connTimeout(caller.timeout), HttpOptions.readTimeout(caller.timeout))
+      .header("content-type", "application/json")
+
     params match {
-      case Some(_) => {
-        Http
-          .post(s"${caller.URL}/$request")
-          .options(HttpOptions.connTimeout(10000), HttpOptions.readTimeout(10000))
-          .params(params.get)
-          .header("content-type", "application/json")
-          .asString
-      }
-      case None => {
-        Http
-          .post(s"${caller.URL}/$request")
-          .options(HttpOptions.connTimeout(10000), HttpOptions.readTimeout(10000))
-          .header("content-type", "application/json")
-          .asString
-      }
+      case Some(_) => call.params(params.get)
+      case None =>
     }
+
+    call.asString
   }
 
   /**
@@ -101,23 +131,18 @@ trait HttpHelper {
    * @tparam A
    * @return String
    */
-  def postAuth[A <: Connection](caller: A)(request: String, params: Option[Map[String, String]] = None,
-                                           auth: String): String = {
+  def postAuth[A <: Connection](caller: A)(request: String, params: Option[Map[String, String]] = None, auth: String): String = {
+    val call = Http
+      .post(s"${caller.URL}/$request")
+      .options(HttpOptions.connTimeout(caller.timeout), HttpOptions.readTimeout(caller.timeout))
+      .header("X-Registry-Auth", auth.toString)
+
     params match {
-      case Some(_) => {
-        Http
-          .post(s"${caller.URL}/$request")
-          .params(params.get)
-          .header("X-Registry-Auth", auth.toString)
-          .asString
-      }
-      case None => {
-        Http
-          .post(s"${caller.URL}/$request")
-          .header("X-Registry-Auth", auth.toString)
-          .asString
-      }
+      case Some(_) => call.params(params.get)
+      case None =>
     }
+
+    call.asString
   }
 
   /**
@@ -128,23 +153,18 @@ trait HttpHelper {
    * @return InputStreamReader
    */
   def postParseHeaders[A <: Connection](caller: A)(request: String, params: Option[Map[String, String]] = None)
-  :(Int, Map[String, List[String]], InputStreamReader) = {
+  : (Int, Map[String, List[String]], InputStreamReader) = {
+    val call = Http
+      .post(s"${caller.URL}/$request")
+      .options(HttpOptions.connTimeout(caller.timeout), HttpOptions.readTimeout(caller.timeout))
+
     params match {
-      case Some(_) => {
-        Http
-          .post(s"${caller.URL}/$request")
-          .params(params.get)
-          .asHeadersAndParse {
-          inputStream => new InputStreamReader(inputStream)
-        }
-      }
-      case None => {
-        Http
-          .post(s"${caller.URL}/$request")
-          .asHeadersAndParse {
-          inputStream => new InputStreamReader(inputStream)
-        }
-      }
+      case Some(_) => call.params(params.get)
+      case None =>
+    }
+
+    call.asHeadersAndParse {
+      inputStream => new InputStreamReader(inputStream)
     }
   }
 
@@ -170,7 +190,7 @@ trait HttpHelper {
    * @return
    */
   def ping(url: String, request: String): Boolean = {
-    val (responseCode, headers, inputStream) = Http
+    val (responseCode, _, _) = Http
       .get(s"$url/$request").asHeadersAndParse {
       inputStream => new InputStreamReader(inputStream)
     }
