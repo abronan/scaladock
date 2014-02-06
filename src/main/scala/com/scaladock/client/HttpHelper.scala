@@ -38,7 +38,7 @@ trait HttpHelper {
    * @return
    */
   def getStreamAndClose[A <: Connection](caller: A)(request: String, params: Option[Map[String, String]] = None)
-  : (Int, Map[String, List[String]], List[String]) = {
+  : (Int, Map[String, List[String]], String) = {
     var call = Http
       .get(s"${caller.URL}/$request")
       .options(HttpOptions.connTimeout(caller.timeout), HttpOptions.readTimeout(caller.timeout))
@@ -63,7 +63,7 @@ trait HttpHelper {
         }
 
         readOnce
-        data.mkString.split("(?<=[}?!])").toList
+        data.mkString
       }
     }
   }

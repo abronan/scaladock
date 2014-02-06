@@ -290,7 +290,8 @@ class DockerConnection
    */
   def events(since: Long): Try[List[Event]] = Try {
     val params = Map("since" -> since.toString)
-    val (_, _, list) = getStreamAndClose(this)(s"events", Some(params))
+    val (_, _, response) = getStreamAndClose(this)(s"events", Some(params))
+    val list = response.split("(?<=[}?!])").toList
     list map (x => JsonParser.parse(x).extract[Event])
   }
 
