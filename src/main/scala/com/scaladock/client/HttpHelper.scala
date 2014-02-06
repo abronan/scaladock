@@ -96,6 +96,33 @@ trait HttpHelper {
   }
 
   /**
+   * POST method helper with Json send and raw stream receive
+   * @param caller
+   * @param request
+   * @param json
+   * @tparam A
+   * @return String
+   */
+  def postJsonGetStream[A <: Connection](caller: A)(request: String, json: Option[String] = None,
+                                           params: Option[Map[String, String]] = None): Array[Byte] = {
+    var call = json match {
+      case Some(_) => {
+        Http
+          .postData(s"${caller.URL}/$request", json.getOrElse(""))
+          .header("content-type", "application/json")
+      }
+      case None => Http.post(s"${caller.URL}/$request")
+    }
+
+    call = params match {
+      case Some(_) => call.params(params.get)
+      case None => call
+    }
+
+    call.asBytes
+  }
+
+  /**
    * POST method helper with Json send and parse headers
    * @param caller
    * @param request

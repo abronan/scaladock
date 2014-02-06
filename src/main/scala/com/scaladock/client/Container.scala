@@ -182,6 +182,11 @@ sealed case class ContainerId
   Id: String)
   extends PrettyPrinter
 
+sealed case class Resource
+(
+  Resource: String)
+  extends PrettyPrinter
+
 
 /**
  * A Container in a Docker instance
@@ -330,6 +335,16 @@ class Container(val id: String, val connection: DockerConnection) extends Movabl
   }
 
   /**
+   * Copy a file or a directory content from the container
+   * @param resource
+   * @return
+   */
+  def copy(resource: String): Try[Array[Byte]] = Try {
+    val json = write(Resource(resource))
+    postJsonGetStream(connection)(s"containers/$id/copy", Some(json))
+  }
+
+  /**
    * Attach to container stdout through websocket
    */
   def attach(logfile: Option[String] = None) = Try {
@@ -403,8 +418,19 @@ object ContainerAttach {
 
   val system = ActorSystem("ContainerAttach")
 
+  /**
+   * Websocket client to attach to a container
+   * @param id
+   * @param host
+   * @param port
+   * @param logfile
+   * @param stream
+   * @param stderr
+   * @param stdout
+   * @return HookupClient
+   */
   def makeClient(id: String, host: String, port: String, logfile: Option[String], stream: Boolean = true,
-                 stderr: Boolean = true, stdout: Boolean = true) = {
+                 stderr: Boolean = true, stdout: Boolean = true): HookupClient = {
 
     val logs = new File(s"${System.getenv("HOME")}/${id}.log")
 
