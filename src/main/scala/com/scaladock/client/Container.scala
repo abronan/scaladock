@@ -177,6 +177,11 @@ sealed case class WaitStatus
   StatusCode: Int)
   extends PrettyPrinter
 
+sealed case class ContainerId
+(
+  Id: String)
+  extends PrettyPrinter
+
 
 /**
  * A Container in a Docker instance
@@ -317,10 +322,11 @@ class Container(val id: String, val connection: DockerConnection) extends Movabl
 
   /**
    * Exports the container in tar format
+   * TODO
    * @return
    */
   def export = Try {
-    val binary = get(connection)(s"containers/$id/export")
+    get(connection)(s"containers/$id/export")
   }
 
   /**
@@ -339,13 +345,52 @@ class Container(val id: String, val connection: DockerConnection) extends Movabl
   }
 
   /**
-   * Attach to container stdout through websocket
+   * Detach from the container
    */
   def detach = Try {
     AttachInterface match {
       case Some(v) => v.disconnect()
       case None => // ignore
     }
+  }
+
+  /**
+   * Create a new Image from container changes
+   * @param repository
+   * @param message
+   * @param tag
+   * @param author
+   * @param run
+   * @return
+   */
+  def commit(repository: Option[String] = None, message: Option[String] = None, tag: Option[String] = None,
+             author: Option[Author] = None, run: Option[CreationConfig] = None) = Try {
+
+    var params = Map[String, String]()
+    params += ("container" -> id)
+    repository match {
+      case Some(v) => params += ("repo" -> v)
+      case None =>
+    }
+    tag match {
+      case Some(v) => params += ("tag" -> v)
+      case None =>
+    }
+    message match {
+      case Some(v) => params += ("m" -> v)
+      case None =>
+    }
+    author match {
+      case Some(v) => params += ("author" -> s"${v.name} <${v.email}>")
+      case None =>
+    }
+    val json: Option[String] = run match {
+      case Some(v) => Some(write(v))
+      case None => None
+    }
+
+    val response = postJson(connection)("commit", json, Some(params))
+    JsonParser.parse(response).extract[ContainerId]
   }
 
 }

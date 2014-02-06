@@ -17,13 +17,13 @@ trait HttpHelper {
    * @return String
    */
   def get[A <: Connection](caller: A)(request: String, params: Option[Map[String, String]] = None): String = {
-    val call = Http
+    var call = Http
       .get(s"${caller.URL}/$request")
       .options(HttpOptions.connTimeout(caller.timeout), HttpOptions.readTimeout(caller.timeout))
 
-    params match {
+    call = params match {
       case Some(_) => call.params(params.get)
-      case None =>
+      case None => call
     }
 
     call.asString
@@ -39,13 +39,13 @@ trait HttpHelper {
    */
   def getStreamAndClose[A <: Connection](caller: A)(request: String, params: Option[Map[String, String]] = None)
   : (Int, Map[String, List[String]], List[String]) = {
-    val call = Http
+    var call = Http
       .get(s"${caller.URL}/$request")
       .options(HttpOptions.connTimeout(caller.timeout), HttpOptions.readTimeout(caller.timeout))
 
-    params match {
+    call = params match {
       case Some(_) => call.params(params.get)
-      case None =>
+      case None => call
     }
 
     call.asHeadersAndParse {
@@ -76,11 +76,23 @@ trait HttpHelper {
    * @tparam A
    * @return String
    */
-  def postJson[A <: Connection](caller: A)(request: String, json: Option[String] = None): String = {
-    Http
-      .postData(s"${caller.URL}/$request", json.getOrElse(""))
-      .header("content-type", "application/json")
-      .asString
+  def postJson[A <: Connection](caller: A)(request: String, json: Option[String] = None,
+                                           params: Option[Map[String, String]] = None): String = {
+    var call = json match {
+      case Some(_) => {
+        Http
+          .postData(s"${caller.URL}/$request", json.getOrElse(""))
+          .header("content-type", "application/json")
+      }
+      case None => Http.post(s"${caller.URL}/$request")
+    }
+
+    call = params match {
+      case Some(_) => call.params(params.get)
+      case None => call
+    }
+
+    call.asString
   }
 
   /**
@@ -91,12 +103,23 @@ trait HttpHelper {
    * @tparam A
    * @return String
    */
-  def postJsonWithHeaders[A <: Connection](caller: A)(request: String, json: Option[String] = None):
+  def postJsonWithHeaders[A <: Connection](caller: A)(request: String, json: Option[String] = None, params: Option[Map[String, String]] = None):
   (Int, Map[String, List[String]], InputStreamReader) = {
-    Http
-      .postData(s"${caller.URL}/$request", json.getOrElse(""))
-      .header("content-type", "application/json")
-      .asHeadersAndParse {
+    var call = json match {
+      case Some(_) => {
+        Http
+          .postData(s"${caller.URL}/$request", json.getOrElse(""))
+          .header("content-type", "application/json")
+      }
+      case None => Http.post(s"${caller.URL}/$request")
+    }
+
+    call = params match {
+      case Some(_) => call.params(params.get)
+      case None => call
+    }
+
+    call.asHeadersAndParse {
       inputStream => new InputStreamReader(inputStream)
     }
   }
@@ -110,14 +133,14 @@ trait HttpHelper {
    * @return String
    */
   def post[A <: Connection](caller: A)(request: String, params: Option[Map[String, String]] = None): String = {
-    val call = Http
+    var call = Http
       .post(s"${caller.URL}/$request")
       .options(HttpOptions.connTimeout(caller.timeout), HttpOptions.readTimeout(caller.timeout))
       .header("content-type", "application/json")
 
-    params match {
+    call = params match {
       case Some(_) => call.params(params.get)
-      case None =>
+      case None => call
     }
 
     call.asString
@@ -132,14 +155,14 @@ trait HttpHelper {
    * @return String
    */
   def postAuth[A <: Connection](caller: A)(request: String, params: Option[Map[String, String]] = None, auth: String): String = {
-    val call = Http
+    var call = Http
       .post(s"${caller.URL}/$request")
       .options(HttpOptions.connTimeout(caller.timeout), HttpOptions.readTimeout(caller.timeout))
       .header("X-Registry-Auth", auth.toString)
 
-    params match {
+    call = params match {
       case Some(_) => call.params(params.get)
-      case None =>
+      case None => call
     }
 
     call.asString
@@ -154,13 +177,13 @@ trait HttpHelper {
    */
   def postParseHeaders[A <: Connection](caller: A)(request: String, params: Option[Map[String, String]] = None)
   : (Int, Map[String, List[String]], InputStreamReader) = {
-    val call = Http
+    var call = Http
       .post(s"${caller.URL}/$request")
       .options(HttpOptions.connTimeout(caller.timeout), HttpOptions.readTimeout(caller.timeout))
 
-    params match {
+    call = params match {
       case Some(_) => call.params(params.get)
-      case None =>
+      case None => call
     }
 
     call.asHeadersAndParse {
@@ -195,5 +218,18 @@ trait HttpHelper {
       inputStream => new InputStreamReader(inputStream)
     }
     return responseCode >= 400
+  }
+
+  /**
+   * Do a HEAD request
+   * @param caller
+   * @param request
+   * @tparam A
+   * @return
+   */
+  def getHead[A <: Connection](caller: A)(request: String): String = {
+    Http(s"${caller.URL}/$request")
+      .method("HEAD")
+      .asString
   }
 }

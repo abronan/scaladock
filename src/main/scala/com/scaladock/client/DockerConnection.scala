@@ -178,7 +178,7 @@ class DockerConnection
       postJson(this)("containers/create", Some(json))
     ).extract[CreateContainerResponse]
 
-    new Container(resp.Id, this) {
+    new Container(shortenId(resp.Id), this) {
       Config = configuration
     }
   }
