@@ -1,3 +1,6 @@
+net.virtualvoid.sbt.graph.Plugin.graphSettings
+
+
 organization := "com.scaladock"
 
 name := "scaladock"
@@ -26,7 +29,7 @@ libraryDependencies := Seq(
   "org.scalatest" % "scalatest_2.10" % "2.0.RC2" % "test",
   "com.typesafe.akka" % "akka-actor_2.10" % "2.3-M2",
   "org.apache.commons" % "commons-compress" % "1.6",
-  "org.scalaj" %% "scalaj-http" % "0.3.12",
+  "org.scalaj" %% "scalaj-http" % "0.3.12" % "compile",
   "net.liftweb" %% "lift-json" % "2.5.1",
   "com.jsuereth" %% "scala-arm" % "1.3",
   "com.decodified" %% "scala-ssh" % "0.6.4",
@@ -38,14 +41,7 @@ publishMavenStyle := true
 
 publishArtifact in Test := false
 
-publishTo <<= version {
-  v: String =>
-    val nexus = "https://oss.sonatype.org/"
-    if (v.trim.endsWith("SNAPSHOT"))
-      Some("snapshots" at nexus + "content/repositories/snapshots")
-    else
-      Some("releases" at nexus + "service/local/staging/deploy/maven2")
-}
+publishTo := Some(Resolver.file("file",  new File(Path.userHome.absolutePath+"/.m2/repository")))
 
 pomIncludeRepository := {
   x => false
