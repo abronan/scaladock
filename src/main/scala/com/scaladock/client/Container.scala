@@ -267,7 +267,7 @@ class Container(val id: String, val connection: DockerConnection) extends Movabl
    */
   def remove(removeVolume: Boolean = false) = Try {
     val params = Map("v" -> removeVolume.toString)
-    val (responseCode, _, _) = postParseHeaders(connection)(s"containers/$id/kill", Some(params))
+    val (responseCode, _, _) = postParseHeaders(connection)(s"containers/$id/remove", Some(params))
     responseCode match {
       case 204 => Success("Container Removed")
       case 404 => Failure(new Throwable("404 - no such container"))
