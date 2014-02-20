@@ -11,6 +11,7 @@ import akka.actor.{ActorSystem}
 import scala.concurrent.duration._
 import java.util.concurrent.atomic.AtomicInteger
 import java.io.File
+import scala.concurrent.Future
 
 
 sealed case class CreationConfig
@@ -70,17 +71,17 @@ sealed case class Info
   Created: Long,
   Status: String,
   Ports: Port,
-  SizeRw: Int,
-  SizeRootFs: Int,
+  SizeRw: Option[Int],
+  SizeRootFs: Option[Int],
   Names: Array[String])
   extends PrettyPrinter
 
 sealed case class Port
 (
-  PrivatePort: Long,
-  PublicPort: Long,
-  Type: String,
-  IP: String)
+  PrivatePort: Option[Long] = None,
+  PublicPort: Option[Long] = None,
+  Type: Option[String] = None,
+  IP: Option[String] = None)
   extends PrettyPrinter
 
 sealed case class Start
@@ -321,7 +322,7 @@ class Container(val id: String, val connection: DockerConnection) extends Movabl
    */
   def Wait: Try[WaitStatus] = Try {
     JsonParser.parse(
-      get(connection)(s"containers/$id/wait")
+      post(connection)(s"containers/$id/wait")
     ).extract[WaitStatus]
   }
 
