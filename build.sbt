@@ -1,6 +1,3 @@
-net.virtualvoid.sbt.graph.Plugin.graphSettings
-
-
 organization := "com.scaladock"
 
 name := "scaladock"

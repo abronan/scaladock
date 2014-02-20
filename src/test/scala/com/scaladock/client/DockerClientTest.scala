@@ -47,8 +47,19 @@ class DockerClientTest extends FlatSpec with BeforeAndAfter with TryValues with 
   }
 
   /*-------------------------------------
-              Container Tests
+              Listing Tests
    -------------------------------------*/
+
+  "Calling for image list" should "return a valid list of images with their ID set in Info structure" in {
+    val list = client.listImages().get
+    for (entry <- list) {
+      entry.Info should not be empty
+      entry.Info match {
+        case Some(v) => assert(!v.Id.isEmpty)
+        case None =>
+      }
+    }
+  }
 
   "Calling for container list" should "return a valid list of containers with their ID set in Info structure" in {
     val list = client.listContainers().get
@@ -60,6 +71,10 @@ class DockerClientTest extends FlatSpec with BeforeAndAfter with TryValues with 
       }
     }
   }
+
+  /*-------------------------------------
+              Container Tests
+   -------------------------------------*/
 
   "Create a container" should "return a container object with its ID set" in {
     val container = client.createContainer(
@@ -78,7 +93,9 @@ class DockerClientTest extends FlatSpec with BeforeAndAfter with TryValues with 
     container.start()
     val inspect = container.inspect.success.value
 
-    assertResult(inspect.State.Running) { true }
+    assertResult(inspect.State.Running) {
+      true
+    }
     if (!inspect.State.Running) {
       assert(inspect.State.ExitCode == 1)
     }
@@ -91,7 +108,9 @@ class DockerClientTest extends FlatSpec with BeforeAndAfter with TryValues with 
     container.stop()
     val inspect = container.inspect.success.value
 
-    assertResult(inspect.State.Running) { false }
+    assertResult(inspect.State.Running) {
+      false
+    }
     // assert(inspect.State.ExitCode != 0)
   }
 
@@ -100,16 +119,22 @@ class DockerClientTest extends FlatSpec with BeforeAndAfter with TryValues with 
     tmpContainers += container
     container.start()
 
-    val fut = future { container.Wait }
+    val fut = future {
+      container.Wait
+    }
 
     container.stop()
 
     val inspect = container.inspect.success.value
 
-    assertResult(inspect.State.Running) { false }
+    assertResult(inspect.State.Running) {
+      false
+    }
     inspect.State.ExitCode should (equal(0) or equal(255))
 
-    whenReady(fut) { exit => exit.success.value.StatusCode should (equal(0) or equal(255)) }
+    whenReady(fut) {
+      exit => exit.success.value.StatusCode should (equal(0) or equal(255))
+    }
   }
 
   "Restarting a container" should "restart the container, `StartedAt` should be set to a different value and `Running` state should be set to `true`" in {
@@ -126,7 +151,9 @@ class DockerClientTest extends FlatSpec with BeforeAndAfter with TryValues with 
     val endTime = inspectAfter.State.StartedAt
 
     assert(startTime != endTime)
-    assertResult(inspectAfter.State.Running) { true }
+    assertResult(inspectAfter.State.Running) {
+      true
+    }
   }
 
   "Kill a container" should "kill the container and no longer list the container as available" in {
@@ -136,7 +163,9 @@ class DockerClientTest extends FlatSpec with BeforeAndAfter with TryValues with 
     container.kill
     val inspect = container.inspect.success.value
 
-    assertResult(inspect.State.Running) { false }
+    assertResult(inspect.State.Running) {
+      false
+    }
     assert(inspect.State.ExitCode != 0)
   }
 
@@ -151,6 +180,29 @@ class DockerClientTest extends FlatSpec with BeforeAndAfter with TryValues with 
 
     val list = client.listContainers().get
     list.foreach(x => assert(x.id != id))
+  }
+
+  "Get changes of a container" should "return a list of added and modified files" in {
+    val container = client.createContainer(
+      Some(CreationConfig(
+        Tty = true,
+        Cmd = Some(Array("touch", "/newFile"))
+      ))
+    ).success.value
+    container.start()
+    tmpContainers += container
+
+    val listDiff = container.changes.success.value
+    assert(listDiff.size == 3)
+
+    listDiff.foreach(
+      x => {
+        if(x.Path == "/newFile"){
+          x.Kind shouldBe 1
+          x.Path shouldBe "/newFile"
+        }
+      }
+    )
   }
 
   /*-------------------------------------
