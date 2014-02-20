@@ -16,7 +16,7 @@ class DockerClientTest extends FlatSpec with BeforeAndAfter with TryValues with 
   val tmpContainers: ListBuffer[Container] = ListBuffer()
 
   before {
-    client = new DockerConnection("172.16.241.156", "4243", 10000)
+    client = new DockerConnection("172.16.241.159", "4243", 10000)
   }
 
   after {
@@ -83,7 +83,6 @@ class DockerClientTest extends FlatSpec with BeforeAndAfter with TryValues with 
     container.start()
 
     val fut = future { container.Wait }
-    whenReady(fut) { exit => exit.success.value.StatusCode should (equal(0) or equal(255)) }
 
     container.stop()
 
@@ -91,7 +90,49 @@ class DockerClientTest extends FlatSpec with BeforeAndAfter with TryValues with 
 
     assertResult(inspect.State.Running) { false }
     inspect.State.ExitCode should (equal(0) or equal(255))
+
+    whenReady(fut) { exit => exit.success.value.StatusCode should (equal(0) or equal(255)) }
   }
 
+  "Restarting a container" should "restart the container, `StartedAt` should be set to a different value and `Running` state should be set to `true`" in {
+    val container = client.createContainer().success.value
+    tmpContainers += container
+    container.start()
+
+    val inspectBefore = container.inspect.success.value
+    val startTime = inspectBefore.State.StartedAt
+
+    container.restart()
+
+    val inspectAfter = container.inspect.success.value
+    val endTime = inspectAfter.State.StartedAt
+
+    assert(startTime != endTime)
+    assertResult(inspectAfter.State.Running) { true }
+  }
+
+  "Kill a container" should "kill the container and no longer list the container as available" in {
+    val container = client.createContainer().success.value
+    tmpContainers += container
+    container.start()
+    container.kill
+    val inspect = container.inspect.success.value
+
+    assertResult(inspect.State.Running) { false }
+    assert(inspect.State.ExitCode != 0)
+  }
+
+  "Remove a container" should "remove the container and the container should no longer be listed" in {
+    val container = client.createContainer().success.value
+    val id = container.id
+    tmpContainers += container
+    container.start()
+    container.stop()
+
+    container.remove()
+
+    val list = client.listContainers().get
+    list.foreach(x => assert(x.id != id))
+  }
 
 }

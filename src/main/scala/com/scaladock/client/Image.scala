@@ -129,8 +129,9 @@ class Image(id: String, connection: DockerConnection) extends HttpHelper {
    * @return
    */
   def remove: Try[Array[Any]] = Try {
+    val (_, _, response) = delete(connection)(s"images/${Info.get.RepoTags(0)}")
     JsonParser.parse(
-      delete(connection)(s"images/${Info.get.RepoTags(0)}")
+      response
     ).extract[Array[Any]]
   }
 

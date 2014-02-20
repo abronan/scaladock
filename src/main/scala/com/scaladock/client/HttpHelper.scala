@@ -225,12 +225,21 @@ trait HttpHelper {
    * @tparam A
    * @return InputStreamReader
    */
-  def delete[A <: Connection](caller: A)(request: String): String = {
-    Http
+  def delete[A <: Connection](caller: A)(request: String, params: Option[Map[String, String]] = None)
+  : (Int, Map[String, List[String]], InputStreamReader) = {
+    var call = Http
       .post(s"${caller.URL}/$request")
       .option(HttpOptions.method("DELETE"))
       .header("content-type", "application/json")
-      .asString
+
+    call = params match {
+      case Some(_) => call.params(params.get)
+      case None => call
+    }
+
+    call.asHeadersAndParse {
+      inputStream => new InputStreamReader(inputStream)
+    }
   }
 
   /**
