@@ -18,21 +18,21 @@ import Stream._
 sealed case class SystemInfo
 (
   Containers: Int,
-  Debug: Boolean,
+  Debug: Int,
   Driver: String,
   DriverStatus: Array[Array[String]],
-  IPv4Forwarding: Boolean,
+  ExecutionDriver: String,
+  IPv4Forwarding: Int,
   Images: Int,
   IndexServerAddress: String,
   InitPath: String,
   InitSha1: String,
   KernelVersion: String,
-  LXCVersion: String,
   MemoryLimit: Int,
   NEventsListener: Int,
   NFd: Int,
   NGoroutines: Int,
-  SwapLimit: Boolean)
+  SwapLimit: Int)
   extends PrettyPrinter
 
 sealed case class DockerVersion

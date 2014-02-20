@@ -16,7 +16,7 @@ class DockerClientTest extends FlatSpec with BeforeAndAfter with TryValues with 
   val tmpContainers: ListBuffer[Container] = ListBuffer()
 
   before {
-    client = new DockerConnection("172.16.241.159", "4243", 10000)
+    client = new DockerConnection("localhost", "4243", 10000)
   }
 
   after {
@@ -31,6 +31,24 @@ class DockerClientTest extends FlatSpec with BeforeAndAfter with TryValues with 
       }
     }
   }
+
+  /*-------------------------------------
+             Information Tests
+   -------------------------------------*/
+
+  "Get docker informations" should "contain non null informations" in {
+    val info = client.SystemInfo.success.value
+
+    assert(info.Containers > 0)
+    assert(info.Images > 0)
+    assert(info.NFd > 0);
+    assert(info.NGoroutines > 0)
+    assert(info.MemoryLimit > 0)
+  }
+
+  /*-------------------------------------
+              Container Tests
+   -------------------------------------*/
 
   "Calling for container list" should "return a valid list of containers with their ID set in Info structure" in {
     val list = client.listContainers().get
@@ -134,5 +152,9 @@ class DockerClientTest extends FlatSpec with BeforeAndAfter with TryValues with 
     val list = client.listContainers().get
     list.foreach(x => assert(x.id != id))
   }
+
+  /*-------------------------------------
+               Images Tests
+   -------------------------------------*/
 
 }
