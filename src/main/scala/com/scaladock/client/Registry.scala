@@ -18,6 +18,12 @@ sealed case class AuthConfig
   email: String)
   extends PrettyPrinter
 
+sealed case class Author
+(
+  name: String,
+  email: String)
+  extends PrettyPrinter
+
 /**
  * A Registry with Authentication configuration
  * The authentication file is in Json Format and of the form :

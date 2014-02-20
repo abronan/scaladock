@@ -11,7 +11,10 @@ import akka.actor.{ActorSystem}
 import scala.concurrent.duration._
 import java.util.concurrent.atomic.AtomicInteger
 import java.io.File
-import scala.concurrent.Future
+import scala.concurrent.{Await, Future}
+import akka.util.Timeout
+import java.util.concurrent.TimeUnit
+import scala.concurrent.duration.TimeUnit
 
 
 sealed case class CreationConfig
@@ -430,14 +433,14 @@ object ContainerAttach {
    * @param stdout
    * @return HookupClient
    */
-  def makeClient(id: String, host: String, port: String, logfile: Option[String], stream: Boolean = true,
-                 stderr: Boolean = true, stdout: Boolean = true): HookupClient = {
+  def makeClient(id: String, host: String, port: String, logfile: Option[String] = None, logs: Boolean = false,
+                 stream: Boolean = true, stderr: Boolean = true, stdout: Boolean = true): HookupClient = {
 
     val logs = new File(s"${System.getenv("HOME")}/${id}.log")
 
     new HookupClient() {
 
-      val uri = new URI(s"ws://${host}:${port}/containers/$id/attach/ws?stream=$stream&stderr=$stderr&stdout=$stdout")
+      val uri = new URI(s"ws://${host}:${port}/containers/$id/attach/ws?logs=$logs&stream=$stream&stderr=$stderr&stdout=$stdout")
 
       val settings: HookupClientConfig = HookupClientConfig(
         uri = uri,
