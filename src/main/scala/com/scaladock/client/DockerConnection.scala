@@ -277,9 +277,9 @@ class DockerConnection
    * @return
    */
   def searchImage(name: String): Try[Array[SearchImage]] = Try {
-    val params = Map("name" -> name)
+    val params = Map("term" -> name)
     JsonParser.parse(
-      get(this)("images/json", Some(params))
+      get(this)("images/search", Some(params))
     ).extract[Array[SearchImage]]
   }
 

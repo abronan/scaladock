@@ -46,6 +46,12 @@ class DockerClientTest extends FlatSpec with BeforeAndAfter with TryValues with 
     assert(info.MemoryLimit > 0)
   }
 
+  "Search Image" should "return a list with the searched image inside" in {
+    val array = client.searchImage("busybox").success.value
+    assert(array.exists(v => v.name == "busybox"))
+    array.find(v => v.name == "busybox").size shouldBe 1
+  }
+
   /*-------------------------------------
               Listing Tests
    -------------------------------------*/

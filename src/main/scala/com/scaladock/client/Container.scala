@@ -33,7 +33,7 @@ sealed case class CreationConfig
   Env: Option[Array[String]] = None,
   Cmd: Option[Array[String]] = Some(Array("/bin/bash")),
   Dns: Option[Array[String]] = None,
-  Image: String = "ubuntu",
+  Image: String = "busybox",
   Volumes: Option[Map[String, Array[String]]] = None,
   VolumesFrom: String = "",
   WorkingDir: String = "",
