@@ -55,7 +55,7 @@ sealed case class Deleted
 /**
  * Created by abronan on 20/01/14.
  */
-class Image(id: Option[String] = None, name: Option[String] = None, connection: DockerConnection) extends HttpHelper {
+class Image(val id: Option[String] = None, val name: Option[String] = None, val connection: DockerConnection) extends HttpHelper {
 
   implicit val formats = DefaultFormats
 

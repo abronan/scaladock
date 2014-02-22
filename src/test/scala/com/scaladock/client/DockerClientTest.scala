@@ -248,4 +248,26 @@ class DockerClientTest extends FlatSpec with BeforeAndAfter with TryValues with 
                Images Tests
    -------------------------------------*/
 
+  "Removing an image" should "remove the image and the image should no longer be listed"  in {
+    val container = client.createContainer(
+      Some(CreationConfig(
+        Tty = true,
+        Cmd = Some(Array("touch", "/newFile"))
+      ))
+    ).success.value
+    container.start()
+
+    val image = container.commit().success.value
+    tmpImages += image
+
+    container.stop()
+    container.kill
+    container.remove()
+
+    image.remove
+
+    val list = client.listContainers().success.value
+    assert(!list.exists(v => v.id.startsWith(image.id.get)))
+  }
+
 }
