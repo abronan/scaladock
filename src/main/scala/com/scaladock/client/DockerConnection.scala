@@ -265,7 +265,7 @@ class DockerConnection
 
     val list = for (entry <- res.children) yield entry.extract[ImageInfo]
 
-    for (info <- list) yield new Image(shortenId(info.Id), this) {
+    for (info <- list) yield new Image(id = Some(shortenId(info.Id)), connection = this) {
       Info = Some(info)
     }
   }

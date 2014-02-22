@@ -14,6 +14,7 @@ class DockerClientTest extends FlatSpec with BeforeAndAfter with TryValues with 
 
   var client: DockerConnection = _
   val tmpContainers: ListBuffer[Container] = ListBuffer()
+  val tmpImages: ListBuffer[Image] = ListBuffer()
 
   before {
     client = new DockerConnection("localhost", "4243", 10000)
@@ -26,6 +27,15 @@ class DockerClientTest extends FlatSpec with BeforeAndAfter with TryValues with 
         container.stop()
         container.kill
         container.remove()
+      } catch {
+        case ignore: Exception =>
+      }
+    }
+
+    // Kill all temporary images
+    for (image <- tmpImages) {
+      try {
+        image.remove
       } catch {
         case ignore: Exception =>
       }
@@ -136,10 +146,10 @@ class DockerClientTest extends FlatSpec with BeforeAndAfter with TryValues with 
     assertResult(inspect.State.Running) {
       false
     }
-    inspect.State.ExitCode should (equal(0) or equal(255))
+    val exitCode = inspect.State.ExitCode
 
     whenReady(fut) {
-      exit => exit.success.value.StatusCode should (equal(0) or equal(255))
+      exit => exit.success.value.StatusCode shouldBe exitCode
     }
   }
 
@@ -209,6 +219,29 @@ class DockerClientTest extends FlatSpec with BeforeAndAfter with TryValues with 
         }
       }
     )
+  }
+
+  "Commit a container" should "create a new image from container's changes" in {
+    val container = client.createContainer(
+      Some(CreationConfig(
+        Tty = true,
+        Cmd = Some(Array("touch", "/newFile"))
+      ))
+    ).success.value
+    container.start()
+    tmpContainers += container
+
+    val image = container.commit().success.value
+    tmpImages += image
+
+    val inspectImage = image.inspect.success.value
+    assert(inspectImage.container.get.startsWith(container.id))
+    inspectImage.container_config.Image shouldBe "busybox"
+
+    val parent = new Image(name = Some("busybox"), connection = client)
+    val busybox = parent.inspect.success.value
+
+    inspectImage.parent.get shouldBe busybox.id
   }
 
   /*-------------------------------------

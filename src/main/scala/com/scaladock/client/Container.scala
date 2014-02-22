@@ -181,7 +181,7 @@ sealed case class WaitStatus
   StatusCode: Int)
   extends PrettyPrinter
 
-sealed case class ContainerId
+sealed case class ImageId
 (
   Id: String)
   extends PrettyPrinter
@@ -383,7 +383,7 @@ class Container(val id: String, val connection: DockerConnection) extends Movabl
    * @return
    */
   def commit(repository: Option[String] = None, message: Option[String] = None, tag: Option[String] = None,
-             author: Option[Author] = None, run: Option[CreationConfig] = None) = Try {
+             author: Option[Author] = None, run: Option[CreationConfig] = None): Try[Image] = Try {
 
     var params = Map[String, String]()
     params += ("container" -> id)
@@ -409,7 +409,8 @@ class Container(val id: String, val connection: DockerConnection) extends Movabl
     }
 
     val response = postJson(connection)("commit", json, Some(params))
-    JsonParser.parse(response).extract[ContainerId]
+    val imageId = JsonParser.parse(response).extract[ImageId]
+    new Image(id = Some(imageId.Id), connection = connection)
   }
 
 }

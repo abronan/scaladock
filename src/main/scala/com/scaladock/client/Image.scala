@@ -55,7 +55,7 @@ sealed case class Deleted
 /**
  * Created by abronan on 20/01/14.
  */
-class Image(id: String, connection: DockerConnection) extends HttpHelper {
+class Image(id: Option[String] = None, name: Option[String] = None, connection: DockerConnection) extends HttpHelper {
 
   implicit val formats = DefaultFormats
 
@@ -67,7 +67,7 @@ class Image(id: String, connection: DockerConnection) extends HttpHelper {
    */
   def inspect: Try[ImageInspect] = Try {
     JsonParser.parse(
-      get(connection)(s"images/${Info.get.RepoTags(0)}/json")
+      get(connection)(s"images/${id.getOrElse(name.get)}/json")
     ).extract[ImageInspect]
   }
 
@@ -78,7 +78,7 @@ class Image(id: String, connection: DockerConnection) extends HttpHelper {
   def history: Try[Array[History]] = Try {
     // TODO Handle Special case of containers that are <none>:<none>
     JsonParser.parse(
-      get(connection)(s"images/${Info.get.RepoTags(0)}/history")
+      get(connection)(s"images/${id.getOrElse(name.get)}/history")
     ).extract[Array[History]]
   }
 
@@ -90,7 +90,7 @@ class Image(id: String, connection: DockerConnection) extends HttpHelper {
   def push(registry: DockerRegistry): Try[Progress] = Try {
     val params = Map("registry" -> registry.indexURL)
     JsonParser.parse(
-      postAuth(connection)(s"images/${Info.get.RepoTags(0)}/push", Some(params), registry.authBase64)
+      postAuth(connection)(s"images/${id.getOrElse(name.get)}/push", Some(params), registry.authBase64)
     ).extract[Progress]
   }
 
@@ -103,7 +103,7 @@ class Image(id: String, connection: DockerConnection) extends HttpHelper {
   def insert(path: String = "/usr", url: String = ""): Try[Progress] = Try {
     val params = Map("path" -> path, "url" -> url)
     JsonParser.parse(
-      post(connection)(s"images/${Info.get.RepoTags(0)}/insert", Some(params))
+      post(connection)(s"images/${id.getOrElse(name.get)}/insert", Some(params))
     ).extract[Progress]
   }
 
@@ -119,7 +119,7 @@ class Image(id: String, connection: DockerConnection) extends HttpHelper {
     if (force != false) params += ("force" -> "true")
 
     val (responseCode, _, _) =
-      postParseHeaders(connection)(s"images/${Info.get.RepoTags(0)}/push")
+      postParseHeaders(connection)(s"images/${id.getOrElse(name.get)}/push")
 
     responseCode
   }
@@ -129,7 +129,7 @@ class Image(id: String, connection: DockerConnection) extends HttpHelper {
    * @return
    */
   def remove: Try[Array[Any]] = Try {
-    val (_, _, response) = delete(connection)(s"images/${Info.get.RepoTags(0)}")
+    val (_, _, response) = delete(connection)(s"images/${id.getOrElse(name.get)}")
     JsonParser.parse(
       response
     ).extract[Array[Any]]

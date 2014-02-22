@@ -55,8 +55,9 @@ class DockerRegistry
 
   val default = "https://index.docker.io/v1/"
 
-  def authBase64: String =
+  def authBase64: Try[String] = Try {
     Base64.encode(AuthConfig.get.auth.getBytes(Charset.forName("ASCII"))).toString
+  }
 
   /**
    * Resolve Auth Configuration for a given registry
