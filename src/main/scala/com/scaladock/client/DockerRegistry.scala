@@ -5,17 +5,25 @@ import scala.io._
 import net.liftweb.json.{DefaultFormats, JsonParser}
 import com.scaladock.client.util.PrettyPrinter
 import scalaj.http.Base64
-import java.nio.charset.Charset
+import net.liftweb.json.Serialization._
 
 sealed case class RegistryConfig
 (
-  configs: Map[String, AuthConfig])
+  configs: Map[String, AuthToken])
+  extends PrettyPrinter
+
+sealed case class AuthToken
+(
+  auth: String,
+  email: String)
   extends PrettyPrinter
 
 sealed case class AuthConfig
 (
-  auth: String,
-  email: String)
+  username: String,
+  password: String,
+  email: String,
+  serveraddress: String)
   extends PrettyPrinter
 
 sealed case class Author
@@ -55,16 +63,16 @@ class DockerRegistry
 
   val default = "https://index.docker.io/v1/"
 
-  def authBase64: Try[String] = Try {
-    Base64.encode(AuthConfig.get.auth.getBytes(Charset.forName("ASCII"))).toString
+  def authBase64: String = {
+    val encoded = Base64.encode(buildAuth.get.getBytes("ASCII"))
+    new String(encoded)
   }
 
   /**
    * Resolve Auth Configuration for a given registry
    */
-  def AuthConfig: Try[AuthConfig] = Try {
-
-    val config: Map[String, AuthConfig] = loadConfig match {
+  def AuthConfig: AuthToken = {
+    val config: Map[String, AuthToken] = loadConfig match {
       case Success(c) => c
       case Failure(_) => null
     }
@@ -76,16 +84,34 @@ class DockerRegistry
   }
 
   /**
-   * Tries to load the authentication configuration for the registry
+   * Builds an AuthConfig object
    * @return
    */
-  def loadConfig: Try[Map[String, AuthConfig]] = Try {
+  def buildAuth: Try[String] = Try {
+    val decoded = Base64.decode(AuthConfig.auth)
+    val auth = new String(decoded).split(":")
+
+    val authConf = new AuthConfig(
+      username = auth(0),
+      password = auth(1),
+      email = AuthConfig.email,
+      serveraddress = indexURL
+    )
+
+    writePretty(authConf)
+  }
+
+  /**
+   * Tries to load the authentication token for the registry
+   * @return
+   */
+  def loadConfig: Try[Map[String, AuthToken]] = Try {
     JsonParser.parse(
       Source
         .fromFile(s"${rootPath.getOrElse(System.getenv("HOME"))}/$dockercfg")
         .getLines()
         .mkString
-    ).extract[Map[String, AuthConfig]]
+    ).extract[Map[String, AuthToken]]
   }
 
   // TODO Infer registry configuration
@@ -93,7 +119,6 @@ class DockerRegistry
 
   // TODO Resolve repository name
   def resolveRepositoryName: String = ""
-
 
   def pingRegistry: Boolean = {
     ping(s"$indexURL/", "_ping")

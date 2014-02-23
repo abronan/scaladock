@@ -1,6 +1,6 @@
 package com.scaladock.client
 
-import scala.util.{Try, Success, Failure}
+import scala.util.{Try}
 
 /** Movable is a Trait defining the capability to move a container
   * between Docker Hosts. [[com.scaladock.client.Container]] mixes
@@ -26,9 +26,14 @@ import scala.util.{Try, Success, Failure}
 trait Movable {
 
   /**
-   * Exports the container using [[com.scaladock.client.Container.exportContainer()]]
-   * on the original host and calling [[com.scaladock.client.DockerConnection.importContainer()]]
-   * to move it onto the destination host
+   * Moves a container from a source host to a remote host by doing :
+   * - On the source host:
+   * Committing changes using [[com.scaladock.client.Container.commit()]]
+   * Pushing onto the registry using [[com.scaladock.client.Image.push()]]
+   * - On the remote host:
+   * Pulling the image using [[com.scaladock.client.DockerConnection.createImage()]]
+   * Create a new [[com.scaladock.client.Container]] with this image
+   * Run the container using [[com.scaladock.client.Container.start()]]
    *
    * using(registry) { container1 >> destHost }
    *
@@ -37,14 +42,7 @@ trait Movable {
    */
   def >>(dest: DockerConnection): Try[String] = Try {
 
-    // TODO migration
-    // Commit an image from the container changes
-    // Push image onto registry
-    // Pull the image on the destination connection
-    // Step 1 : Call export() on the container
-    // Step 2 : Call import() on the connection
-    // Step 3 : Return new container instance (with a new Id) bound with the destination connection
-    // return container
+    // TODO
     ""
   }
 

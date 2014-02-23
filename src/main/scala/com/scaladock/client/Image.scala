@@ -36,9 +36,10 @@ sealed case class History
 
 sealed case class Progress
 (
-  status: String,
+  status: Option[String],
   progress: Option[String],
-  progressDetail: Option[ProgressDetail])
+  progressDetail: Option[ProgressDetail],
+  error: Option[String])
   extends PrettyPrinter
 
 sealed case class Untagged
@@ -87,11 +88,14 @@ class Image(val id: Option[String] = None, val name: Option[String] = None, val 
    * @param registry
    * @return
    */
-  def push(registry: DockerRegistry): Try[Progress] = Try {
+  def push(registry: DockerRegistry): Try[List[Progress]] = Try {
     val params = Map("registry" -> registry.indexURL)
-    JsonParser.parse(
+    println(new String(Base64.decode(registry.authBase64)))
+    val response =
       postAuth(connection)(s"images/${id.getOrElse(name.get)}/push", Some(params), registry.authBase64)
-    ).extract[Progress]
+    println(response)
+    val list = response.split("(?<=[}?!])").toList
+    list map (x => JsonParser.parse(x).extract[Progress])
   }
 
   /**

@@ -1,7 +1,7 @@
 package com.scaladock.client
 
 import java.io.{BufferedReader, InputStreamReader}
-import scalaj.http.{HttpException, HttpOptions, Http}
+import scalaj.http.{HttpOptions, Http}
 
 /**
  * Http Helper class to deal with requests to the remote API
@@ -30,7 +30,7 @@ trait HttpHelper {
   }
 
   /**
-   * GET Stream method helper
+   * GET Stream and Close method helper
    * @param caller
    * @param request
    * @param params
@@ -185,7 +185,7 @@ trait HttpHelper {
     var call = Http
       .post(s"${caller.URL}/$request")
       .options(HttpOptions.connTimeout(caller.timeout), HttpOptions.readTimeout(caller.timeout))
-      .header("X-Registry-Auth", auth.toString)
+      .header("X-Registry-Auth", auth)
 
     call = params match {
       case Some(_) => call.params(params.get)

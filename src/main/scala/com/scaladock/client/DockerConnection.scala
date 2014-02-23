@@ -1,6 +1,6 @@
 package com.scaladock.client
 
-import scala.util.{Failure, Success, Try}
+import scala.util.{Try}
 import scala.None
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -9,11 +9,6 @@ import net.liftweb.json.Serialization._
 import scala.util.Success
 import scala.util.Failure
 import com.scaladock.client.util.PrettyPrinter
-import java.io.{InputStreamReader, BufferedReader}
-import java.nio.{ByteOrder, CharBuffer}
-import scala.collection.mutable.ArrayBuffer
-import Stream._
-
 
 sealed case class SystemInfo
 (
@@ -90,14 +85,11 @@ trait Connection {
 
   def timeout: Int
 
-  def default: String
-
   /**
    * Returns the URL whether it is the default URL or a custom one
    * @return
    */
-  def URL: String =
-    if (host == default) default else s"http://$host:$port"
+  def URL: String = s"http://$host:$port"
 }
 
 
@@ -110,14 +102,12 @@ trait Connection {
  */
 class DockerConnection
 (
-  override val host: String = "unix:///var/run/docker.sock/v1.8",
+  override val host: String = "localhost",
   override val port: String = "4243",
   override val timeout: Int = 10000)
   extends Connection with HttpHelper {
 
   implicit val formats = DefaultFormats
-
-  override val default = "unix:///var/run/docker.sock/v1.8"
 
   /**
    * Shortens the Id of the container for future API calls
@@ -236,8 +226,10 @@ class DockerConnection
     registry match {
       case Some(_) => {
         params += ("registry" -> registry.get.indexURL)
-        JsonParser.parse(
+        val response =
           postAuth(this)("images/create", Some(params), registry.get.authBase64)
+        JsonParser.parse(
+          response
         ).extract[CreateImageResponse]
       }
       case None => {

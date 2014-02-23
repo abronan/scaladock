@@ -66,7 +66,7 @@ class DockerClientTest extends FlatSpec with BeforeAndAfter with TryValues with 
               Listing Tests
    -------------------------------------*/
 
-  "Calling for image list" should "return a valid list of images with their ID set in Info structure" in {
+  "List images" should "return a valid list of images with their ID set in Info structure" in {
     val list = client.listImages().get
     for (entry <- list) {
       entry.Info should not be empty
@@ -77,7 +77,7 @@ class DockerClientTest extends FlatSpec with BeforeAndAfter with TryValues with 
     }
   }
 
-  "Calling for container list" should "return a valid list of containers with their ID set in Info structure" in {
+  "List containers" should "return a valid list of containers with their ID set in Info structure" in {
     val list = client.listContainers().get
     for (entry <- list) {
       entry.Info should not be empty
@@ -213,7 +213,7 @@ class DockerClientTest extends FlatSpec with BeforeAndAfter with TryValues with 
 
     listDiff.foreach(
       x => {
-        if(x.Path == "/newFile"){
+        if (x.Path == "/newFile") {
           x.Kind shouldBe 1
           x.Path shouldBe "/newFile"
         }
@@ -248,7 +248,7 @@ class DockerClientTest extends FlatSpec with BeforeAndAfter with TryValues with 
                Images Tests
    -------------------------------------*/
 
-  "Removing an image" should "remove the image and the image should no longer be listed"  in {
+  "Removing an image" should "remove the image and the image should no longer be listed" in {
     val container = client.createContainer(
       Some(CreationConfig(
         Tty = true,
@@ -258,7 +258,6 @@ class DockerClientTest extends FlatSpec with BeforeAndAfter with TryValues with 
     container.start()
 
     val image = container.commit().success.value
-    tmpImages += image
 
     container.stop()
     container.kill
