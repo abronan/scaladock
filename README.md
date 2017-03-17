@@ -1,18 +1,20 @@
-#Scaladock
+# Scaladock
+
+> **Warning**: This library is long left **unmaintained**, please check out the [Docker remote API](https://docs.docker.com/engine/api/sdks/) client list for active scala clients.
 
 **scaladock** is a simple [Scala](http://www.scala-lang.org) client for the [Docker](http://www.docker.io) Container Engine Remote API.
 
 Consider this as an experimental client. It is still under development and it needs a lot of improvements and cleanup.
 
-##Getting Started
+## Getting Started
 
-###Connection
+### Connection
 
-#####Connect to a remote instance using Http
+##### Connect to a remote instance using Http
 
 	val connection = new DockerConnection("172.16.212.98", "4243")
 
-###Create a new Container and perform actions on it
+### Create a new Container and perform actions on it
 
 You can create a new Container using the connection you defined in the last step calling `create`:
 
@@ -45,7 +47,7 @@ You can then perform many actions on the container:
 	container.inspect
 	...
 
-###Attach to a container
+### Attach to a container
 
 	c.attach()
 
@@ -57,7 +59,7 @@ To detach from the container, use:
 
 	c.detach
 
-###Contributing
+### Contributing
 
 1. Fork it
 
